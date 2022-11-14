@@ -325,14 +325,23 @@ public:
 	std::vector<int> Dijkstra(int start, int finish) {
 
 	}
-	//  расстояние от стартовой вершины до каждой другой с учетом препядствий (только под прямыми углами)
-	std::vector<int> newDistanse(int start) {
+	//  расстояние от стартовой вершины до каждой другой без учета препядствий - ПОКА (только под прямыми углами)
+	std::vector<int> newDistanseForEach(int start) {
+		std::pair<int, int> pos = findPos(this->size, start);
+		if (mainMap[pos.first][pos.second] == 0) {
+			std::cout << "ERROR: start point on wall!" << std::endl;
+			abort();
+		}
 		std::vector<int> dist;
 		for (int i = 0; i < this->size; i++) {
 			for (int j = 0; j < this->size; j++) {
-				int currVert = findVertex(i, j, this->size);
-				int currDist = manhettenDist(this->size, start, currVert);
-				dist.push_back(currDist);
+				if (mainMap[i][j] == 0)
+					continue;
+				else {
+					int currVert = findVertex(i, j, this->size);
+					int currDist = manhettenDist(this->size, start, currVert);
+					dist.push_back(currDist);
+				}	
 			}
 		}
 		return dist;
@@ -367,7 +376,7 @@ public:
 		std::vector<point> path;
 		std::vector<std::vector<point>> graphP;
 		graphP = this->convert();
-		std::vector<int> distToEach = this->newDistanse(start);
+		std::vector<int> distToEach = this->newDistanseForEach(start);
 		std::map<int, int> minWeight;
 
 		std::pair<int, int> startPos = findPos(this->size, start);
@@ -642,14 +651,18 @@ int main()
 {
 	auto graphImage = read_form_image(TEXT("image1.bmp"));
 	graphImage.printMapOnConsol();
+	std::vector <int> dist;
+	dist = graphImage.newDistanseForEach(1);
+	for (int i = 0; i < dist.size(); i++)
+		std::cout << dist[i] << " ";
 
-	std::pair<int, std::vector<int>> t;
+	/*std::pair<int, std::vector<int>> t;
 	t = manhettenDistForOne(5, 13, 20);
 	std::cout << t.first << std::endl;
 	std::cout << "path: ";
-	for (int i = 0; i < t.second.size(); i++) {
+	for (int i = 0; i < t.second.size(); i++)
 		std::cout << t.second[i] << " ";
-	/*std::vector<std::vector<int>> map;
+	std::vector<std::vector<int>> map;
 	for (int i = 0; i < 5; i++) {
 		map.push_back(std::vector<int>());
 		for (int j = 0; j < 5; j++) {
