@@ -322,21 +322,20 @@ public:
 		}
 		return g;
 	}
-	std::vector<int> Dijkstra(int start, int finish) {
-
-	}
-	//  расстояние от стартовой вершины до каждой другой без учета препядствий - ПОКА (только под прямыми углами)
+	//  расстояние от стартовой вершины до каждой другой (только под прямыми углами)
 	std::vector<int> newDistanseForEach(int start) {
+		std::vector<int> dist;
 		std::pair<int, int> pos = findPos(this->size, start);
 		if (mainMap[pos.first][pos.second] == 0) {
+			//dist.push_back(-1);
 			std::cout << "ERROR: start point on wall!" << std::endl;
 			abort();
 		}
-		std::vector<int> dist;
+		
 		for (int i = 0; i < this->size; i++) {
 			for (int j = 0; j < this->size; j++) {
 				if (mainMap[i][j] == 0)
-					continue;
+					dist.push_back(-1);//-1
 				else {
 					int currVert = findVertex(i, j, this->size);
 					int currDist = manhettenDist(this->size, start, currVert);
@@ -346,73 +345,116 @@ public:
 		}
 		return dist;
 	}
-	std::vector<point> findPath_first(int start, int finish) {
-		/*std::vector<std::vector<point>> graphP;
-		graphP = this->convert();
-		std::vector<point> path(this->size);
-		std::vector<int> d(this->size*this->size, INT_MAX);
+	// если клетка не проходима, то не из нее не в нее нельзя ==> больжен быть вектор -1, + мб сделать главную диагональ всю -1
+	std::vector<std::vector<int>> matrixConvert() {
+		std::vector<std::vector<int>> matrix;
+		std::vector<int> possibil;
+		for (int i = 0; i < this->size; i++) {
+			for (int j = 0; j < this->size; j++) {
+				if (this->mainMap[i][j] == 0)
+					possibil.push_back(0);
+				else
+					possibil.push_back(1);
+			}
+		}
+		for (int i = 1; i <= this->size * this->size; i++) {
+			if (possibil[i - 1] == 1) {
+				std::vector<int> tmp = newDistanseForEach(i);
+				matrix.push_back(tmp);
+			}
+			else {
+				std::vector<int> neg(this->size * this->size, -1);//-1
+				matrix.push_back(neg);
+			}
+		}
+		for (int i = 0; i < this->size* this->size; i++) {
+			for (int j = 0; j < this->size* this->size; j++) {
+				if (i != j)
+					continue;
+				else
+					matrix[i][j] = -1;//-1
+			}
+		}
+
+		return matrix;
+	}
+	std::vector<int> findPathDijkstra(int start, int finish) {
+		std::vector<std::vector<int>> matrix = this->matrixConvert();
+		std::vector< std::vector <std::pair <int, int>>> matrixPair;
+		std::vector<int> parent(this->size * this->size);
+		int* dist = new int[this->size * this->size];
+		int* used = new int[this->size * this->size];
+		for (int i = 0; i < this->size * this->size; i++)
+		{
+			dist[i] = INT_MAX;
+			used[i] = 0;
+		}
+		dist[start] = 0;
+		for (int i = 0; i < this->size * this->size; i++)
+		{
+			int c = INT_MAX, min = 0, v = -1;
+			for (int j = 0; j < this->size * this->size; j++)
+			{
+				if ((dist[j] < c) && (!used[j]))
+				{
+					min = j;
+					c = dist[j];
+					v = j;
+				}
+			}
+			for (int j = 0; j < this->size * this->size; j++)
+			{
+				if (matrix[min][j] != -1)
+					if ((dist[j] > matrix[min][j] + c) && !used[j]) {
+						dist[j] = matrix[min][j] + c;
+						parent[j] = v;
+					}
+						
+			}
+			used[min] = 1;
+		}
+		//восстановление пути
+		std::vector<int> path;
+		for (int i = finish; i != start; i = parent[i])
+			path.push_back(i);
+		path.push_back(start);
+		reverse(path.begin(), path.end());
+
+		std::vector<int> res;
+		for (int i = 0; i < this->size * this->size; i++)
+			res.push_back(dist[i]);
+		return res;
+
+		/*for (int i = 0; i < matrix.size(); i++) {
+			matrixPair.push_back(std::vector< std::pair<int, int>>());
+			for (int j = 0; j < matrix.size(); j++) {
+				matrixPair[i].push_back(std::make_pair(0, 0));
+				matrixPair[i][j].second = matrix[i][j];
+				matrixPair[i][j].first = j;
+			}
+		}
+
+		std::vector<int> d(matrixPair.size(), INT_MAX), p(matrixPair.size());
 		d[start] = 0;
-		std::priority_queue<std::pair<int, int>> q;
+		std::priority_queue< std::pair <int, int> > q;
 		q.push(std::make_pair(0, start));
-		while (!q.empty()) {
-			int currVert = q.top().second;
-			std::pair<int, int> currPos = findPos(this->size, currVert);
-			int currDist = -q.top().first;
+		while (!q.empty())
+		{
+			int v = q.top().second, cur_d = -q.top().first;
 			q.pop();
-			if (currDist > d[currVert])
-				continue;
-			std::vector<point> neighbors = findNeighbors(currVert);
-			for (int i = 0; i < neighbors.size(); ++i) {
-				int to = neighbors[i].vert;
-				int currLen = neighbors[i].dist;
-				if (d[currVert] + currLen < d[to]) {
-					d[to] = d[currVert] + currLen;
-					path[to].vert = currVert;
+			if (cur_d > d[v]) continue;
+			for (size_t j = 0; j < matrixPair[v].size(); ++j)
+			{
+				int to = matrixPair[v][j].first, len = matrixPair[v][j].second;
+				if (d[v] + len < d[to])
+				{
+					d[to] = d[v] + len;
+					p[to] = v;
 					q.push(std::make_pair(-d[to], to));
 				}
 			}
 		}
-		return path;*/
-		std::vector<point> path;
-		std::vector<std::vector<point>> graphP;
-		graphP = this->convert();
-		std::vector<int> distToEach = this->newDistanseForEach(start);
-		std::map<int, int> minWeight;
-
-		std::pair<int, int> startPos = findPos(this->size, start);
-		graphP[startPos.first][startPos.second].dist = 0;
-		minWeight[0] = start;
-		
-		while (!minWeight.empty()) {
-			auto current = *(minWeight.begin());
-			int currVert = current.second;
-			int currDist = current.first;
-			minWeight.erase(minWeight.begin());
-			std::pair<int, int> currPos = findPos(this->size, current.second);
-
-			if (graphP[currPos.first][currPos.second].visited)
-				continue;
-
-			graphP[currPos.first][currPos.second].visited = true;
-			std::vector<point> neigbors = this->findNeighbors(currVert);
-
-			for (int i = 0; i < neigbors.size(); i++) {  //возможно узкое место (должны идти по всем соседям вершины)
-				int nextVert = neigbors[i].vert;
-				int nextDist = neigbors[i].dist;
-				std::pair<int, int> nextIndex = findPos(this->size, nextVert);
-				if (!graphP[nextIndex.first][nextIndex.second].visited) {
-					if (currDist + nextDist < distToEach[findVertex(nextIndex.first,nextIndex.second,this->size)]) { // currDist = 0&
-						graphP[nextIndex.first][nextIndex.second].dist = currDist + nextDist;
-						graphP[nextIndex.first][nextIndex.second].parentVert = currVert;  //для восстановления пути
-						path.push_back(graphP[nextIndex.first][nextIndex.second]);
-						minWeight[graphP[nextIndex.first][nextIndex.second].dist] = nextVert;
-					}
-				}
-			}
-		}
-		//return convert_path(graphP, start, finish);
-		return path;
-
+		return d;*/
 	}
 	std::vector<point> findPath(int start, int finish) { // заготовка для A*
 		std::vector<point> openList;
@@ -656,6 +698,23 @@ int main()
 	for (int i = 0; i < dist.size(); i++)
 		std::cout << dist[i] << " ";
 
+	std::cout << std::endl;
+	std::cout << std::endl;
+	std::cout << "TEST MATRIX:" << std::endl << std::endl;
+	std::vector<std::vector<int>> matrix = graphImage.matrixConvert();
+	for (int i = 0; i < matrix.size(); i++) {
+		for (int j = 0; j < matrix.size(); j++) {
+			std::cout << matrix[i][j] << " ";
+		}
+		std::cout << std::endl;
+	}
+	std::cout << std::endl;
+	std::cout << std::endl;
+	std::cout << std::endl;
+	std::vector<int> distt;
+	distt = graphImage.findPathDijkstra(0,24);
+	for (int i = 0; i < distt.size(); i++)
+		std::cout << distt[i] << " ";
 	/*std::pair<int, std::vector<int>> t;
 	t = manhettenDistForOne(5, 13, 20);
 	std::cout << t.first << std::endl;
